@@ -33,7 +33,7 @@
 1. **克隆项目**
 ```bash
 git clone <repository-url>
-cd mindfulness1
+cd mindfulness
 ```
 
 2. **启动本地服务器**
@@ -47,7 +47,7 @@ python3 -m http.server 8000
 ## 📁 项目结构
 
 ```
-mindfulness1/
+mindfulness/
 ├── index.html          # 主页面文件
 ├── app.js             # 核心JavaScript逻辑
 ├── audio/             # 音频资源目录
