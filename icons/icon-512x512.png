@@ -1,0 +1,48 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆形 -->
+  <circle cx="256" cy="256" r="256" fill="url(#gradient)"/>
+  
+  <!-- 渐变定义 -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ade80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 冥想人物轮廓 -->
+  <g transform="translate(256, 256)">
+    <!-- 身体 -->
+    <ellipse cx="0" cy="25" rx="65" ry="90" fill="rgba(255,255,255,0.9)"/>
+    
+    <!-- 头部 -->
+    <circle cx="0" cy="-65" r="48" fill="rgba(255,255,255,0.9)"/>
+    
+    <!-- 手臂（莲花坐姿） -->
+    <ellipse cx="-50" cy="15" rx="20" ry="40" fill="rgba(255,255,255,0.8)" transform="rotate(-30)"/>
+    <ellipse cx="50" cy="15" rx="20" ry="40" fill="rgba(255,255,255,0.8)" transform="rotate(30)"/>
+    
+    <!-- 腿部（盘腿） -->
+    <ellipse cx="-40" cy="90" rx="30" ry="20" fill="rgba(255,255,255,0.8)"/>
+    <ellipse cx="40" cy="90" rx="30" ry="20" fill="rgba(255,255,255,0.8)"/>
+  </g>
+  
+  <!-- 装饰性叶子 -->
+  <g transform="translate(256, 256)">
+    <path d="M-120,-50 Q-135,-80 -105,-90 Q-90,-65 -120,-50" fill="url(#leafGradient)" opacity="0.7"/>
+    <path d="M120,-50 Q135,-80 105,-90 Q90,-65 120,-50" fill="url(#leafGradient)" opacity="0.7"/>
+    <path d="M-130,100 Q-160,90 -145,65 Q-115,80 -130,100" fill="url(#leafGradient)" opacity="0.7"/>
+    <path d="M130,100 Q160,90 145,65 Q115,80 130,100" fill="url(#leafGradient)" opacity="0.7"/>
+  </g>
+  
+  <!-- 音波效果 -->
+  <g transform="translate(256, 256)" opacity="0.3">
+    <circle cx="0" cy="0" r="130" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="4"/>
+    <circle cx="0" cy="0" r="160" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3"/>
+    <circle cx="0" cy="0" r="190" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  </g>
+</svg>

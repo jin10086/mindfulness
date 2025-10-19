@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>冥想音频生成器</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="生成个性化的冥想音频，支持多种背景音和自定义时长，帮助您放松身心，提升专注力。" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="冥想音频" />
+    <meta name="msapplication-TileColor" content="#667eea" />
+    <meta name="msapplication-config" content="browserconfig.xml" />
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="./icons/icon-144x144.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="114x114" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="76x76" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="72x72" href="./icons/icon-72x72.png" />
+    <link rel="apple-touch-icon" sizes="60x60" href="./icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="57x57" href="./icons/icon-192x192.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json" />
     <style>
       * {
         margin: 0;
@@ -281,5 +306,112 @@
 
     <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
     <script src="app.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      // 注册 Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('./service-worker.js');
+            console.log('Service Worker 注册成功:', registration.scope);
+            
+            // 监听 Service Worker 更新
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // 有新版本可用
+                  if (confirm('发现新版本，是否立即更新？')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('Service Worker 注册失败:', error);
+          }
+        });
+      }
+      
+      // PWA 安装提示
+      let deferredPrompt;
+      let installButton;
+      
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // 阻止默认的安装提示
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // 显示自定义安装按钮
+        showInstallButton();
+      });
+      
+      function showInstallButton() {
+        // 创建安装按钮
+        if (!installButton) {
+          installButton = document.createElement('button');
+          installButton.textContent = '📱 安装应用';
+          installButton.className = 'install-btn';
+          installButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            z-index: 1000;
+            transition: all 0.3s ease;
+          `;
+          
+          installButton.addEventListener('mouseenter', () => {
+            installButton.style.transform = 'translateY(-2px)';
+            installButton.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+          });
+          
+          installButton.addEventListener('mouseleave', () => {
+            installButton.style.transform = 'translateY(0)';
+            installButton.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+          });
+          
+          installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              const { outcome } = await deferredPrompt.userChoice;
+              
+              if (outcome === 'accepted') {
+                console.log('用户接受了安装提示');
+              } else {
+                console.log('用户拒绝了安装提示');
+              }
+              
+              deferredPrompt = null;
+              installButton.remove();
+              installButton = null;
+            }
+          });
+          
+          document.body.appendChild(installButton);
+        }
+      }
+      
+      // 监听应用安装事件
+      window.addEventListener('appinstalled', () => {
+        console.log('PWA 安装成功');
+        if (installButton) {
+          installButton.remove();
+          installButton = null;
+        }
+        deferredPrompt = null;
+      });
+    </script>
   </body>
 </html>
