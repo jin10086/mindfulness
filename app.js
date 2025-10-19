@@ -99,14 +99,35 @@ class MeditationAudioGenerator {
       console.log("所有音频文件加载完成");
     } catch (error) {
       console.error("音频文件加载失败:", error);
-      alert("音频文件加载失败，请检查文件路径");
+      
+      // 提供更具体的错误信息
+      let errorMessage = "音频文件加载失败：";
+      if (error.message.includes("404") || error.message.includes("Not Found")) {
+        errorMessage += "音频文件不存在，请检查文件路径";
+      } else if (error.message.includes("网络") || error.message.includes("fetch")) {
+        errorMessage += "网络连接问题，请检查网络连接";
+      } else if (error.message.includes("解码") || error.message.includes("decode")) {
+        errorMessage += "音频文件格式不支持或文件损坏";
+      } else {
+        errorMessage += "请检查文件路径和网络连接";
+      }
+      
+      alert(errorMessage);
     }
   }
 
   async loadAudioBuffer(url) {
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    return await Tone.getContext().decodeAudioData(arrayBuffer);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      return await Tone.getContext().decodeAudioData(arrayBuffer);
+    } catch (error) {
+      console.error(`加载音频文件失败 ${url}:`, error);
+      throw error;
+    }
   }
 
   async generateMeditationAudio() {
@@ -128,6 +149,13 @@ class MeditationAudioGenerator {
       return;
     }
 
+    // 检查音频文件是否已加载
+    const audioCheckResult = this.checkAudioFilesLoaded(backgroundType);
+    if (!audioCheckResult.success) {
+      alert(audioCheckResult.message);
+      return;
+    }
+
     this.showLoading(true);
 
     try {
@@ -137,10 +165,46 @@ class MeditationAudioGenerator {
       this.displayGeneratedAudio(audioBlob);
     } catch (error) {
       console.error("音频生成失败:", error);
-      alert("音频生成失败，请重试");
+      
+      // 提供更具体的错误信息
+      let errorMessage = "音频生成失败：";
+      if (error.message.includes("背景音未加载")) {
+        errorMessage += "背景音文件未正确加载，请刷新页面重试";
+      } else if (error.message.includes("钵声未加载")) {
+        errorMessage += "钵声文件未正确加载，请刷新页面重试";
+      } else if (error.message.includes("网络")) {
+        errorMessage += "网络连接问题，请检查网络后重试";
+      } else if (error.message.includes("解码")) {
+        errorMessage += "音频文件格式错误或损坏";
+      } else {
+        errorMessage += error.message || "未知错误，请重试";
+      }
+      
+      alert(errorMessage);
     } finally {
       this.showLoading(false);
     }
+  }
+
+  // 检查音频文件是否已加载
+  checkAudioFilesLoaded(backgroundType) {
+    // 检查背景音是否加载
+    if (!this.backgroundBuffers[backgroundType]) {
+      return {
+        success: false,
+        message: `背景音"${backgroundType}"未加载完成，请稍等片刻后重试`
+      };
+    }
+
+    // 检查钵声是否加载
+    if (!this.bowlBuffer) {
+      return {
+        success: false,
+        message: "钵声文件未加载完成，请稍等片刻后重试"
+      };
+    }
+
+    return { success: true };
   }
 
   async synthesizeAudio(backgroundType, durationMinutes) {
