@@ -85,8 +85,8 @@ class MeditationAudioGenerator {
       console.log("开始加载音频文件...");
 
       // 加载背景音
-      const rainBuffer = await this.loadAudioBuffer("./audio/rain.wav");
-      const seaBuffer = await this.loadAudioBuffer("./audio/sea.wav");
+      const rainBuffer = await this.loadAudioBuffer("./audio/rain.mp3");
+      const seaBuffer = await this.loadAudioBuffer("./audio/sea.mp3");
 
       this.backgroundBuffers = {
         rain: rainBuffer,
@@ -99,19 +99,28 @@ class MeditationAudioGenerator {
       console.log("所有音频文件加载完成");
     } catch (error) {
       console.error("音频文件加载失败:", error);
-      
+
       // 提供更具体的错误信息
       let errorMessage = "音频文件加载失败：";
-      if (error.message.includes("404") || error.message.includes("Not Found")) {
+      if (
+        error.message.includes("404") ||
+        error.message.includes("Not Found")
+      ) {
         errorMessage += "音频文件不存在，请检查文件路径";
-      } else if (error.message.includes("网络") || error.message.includes("fetch")) {
+      } else if (
+        error.message.includes("网络") ||
+        error.message.includes("fetch")
+      ) {
         errorMessage += "网络连接问题，请检查网络连接";
-      } else if (error.message.includes("解码") || error.message.includes("decode")) {
+      } else if (
+        error.message.includes("解码") ||
+        error.message.includes("decode")
+      ) {
         errorMessage += "音频文件格式不支持或文件损坏";
       } else {
         errorMessage += "请检查文件路径和网络连接";
       }
-      
+
       alert(errorMessage);
     }
   }
@@ -165,7 +174,7 @@ class MeditationAudioGenerator {
       this.displayGeneratedAudio(audioBlob);
     } catch (error) {
       console.error("音频生成失败:", error);
-      
+
       // 提供更具体的错误信息
       let errorMessage = "音频生成失败：";
       if (error.message.includes("背景音未加载")) {
@@ -179,7 +188,7 @@ class MeditationAudioGenerator {
       } else {
         errorMessage += error.message || "未知错误，请重试";
       }
-      
+
       alert(errorMessage);
     } finally {
       this.showLoading(false);
@@ -192,7 +201,7 @@ class MeditationAudioGenerator {
     if (!this.backgroundBuffers[backgroundType]) {
       return {
         success: false,
-        message: `背景音"${backgroundType}"未加载完成，请稍等片刻后重试`
+        message: `背景音"${backgroundType}"未加载完成，请稍等片刻后重试`,
       };
     }
 
@@ -200,7 +209,7 @@ class MeditationAudioGenerator {
     if (!this.bowlBuffer) {
       return {
         success: false,
-        message: "钵声文件未加载完成，请稍等片刻后重试"
+        message: "钵声文件未加载完成，请稍等片刻后重试",
       };
     }
 
