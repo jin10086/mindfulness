@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
 const AUDIO_FILES = [
   './audio/rain.mp3',
   './audio/sea.mp3',
+  './audio/water.mp3',
   './audio/bowl.mp3'
 ];
 

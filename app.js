@@ -87,10 +87,12 @@ class MeditationAudioGenerator {
       // 加载背景音
       const rainBuffer = await this.loadAudioBuffer("./audio/rain.mp3");
       const seaBuffer = await this.loadAudioBuffer("./audio/sea.mp3");
+      const waterBuffer = await this.loadAudioBuffer("./audio/water.mp3");
 
       this.backgroundBuffers = {
         rain: rainBuffer,
         sea: seaBuffer,
+        water: waterBuffer,
       };
 
       // 加载钵声
