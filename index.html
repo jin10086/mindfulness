@@ -211,6 +211,40 @@
         }
       }
 
+      .progress-container {
+        margin-top: 15px;
+        width: 100%;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background-color: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      .progress-text {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .progress-details {
+        font-size: 14px;
+        color: #718096;
+        opacity: 0.8;
+      }
+
       .audio-container {
         display: none;
         margin-top: 20px;
@@ -298,7 +332,13 @@
 
       <div class="loading" id="loading">
         <div class="spinner"></div>
-        正在生成音频，请稍候...
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-text" id="progressText">正在生成音频，请稍候...</div>
+          <div class="progress-details" id="progressDetails">准备中...</div>
+        </div>
       </div>
 
       <div class="audio-container" id="audioContainer">
