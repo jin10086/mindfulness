@@ -3,12 +3,9 @@ class MeditationAudioGenerator {
     this.backgroundBuffers = {};
     this.bowlBuffer = null;
     this.isLoading = false;
-    this.audioWorker = null;
-    this.workerInitialized = false;
 
     this.initializeElements();
     this.bindEvents();
-    this.initializeWorker();
     this.loadAudioFiles();
     this.loadUserPreferences();
   }
@@ -144,83 +141,6 @@ class MeditationAudioGenerator {
     }
   }
 
-  initializeWorker() {
-    try {
-      this.audioWorker = new Worker('./audio-worker.js');
-      
-      this.audioWorker.onmessage = (e) => {
-        const { type, data } = e.data;
-        
-        switch (type) {
-          case 'init-complete':
-            this.workerInitialized = data.success;
-            if (!data.success) {
-              console.error('Worker initialization failed:', data.error);
-            }
-            break;
-            
-          case 'progress':
-            this.updateProgress(data.percentage, data.text, data.details);
-            break;
-            
-          case 'synthesis-complete':
-            this.handleWorkerSynthesisComplete(data.audioBlob);
-            break;
-            
-          case 'error':
-            this.handleWorkerError(data);
-            break;
-        }
-      };
-      
-      this.audioWorker.onerror = (error) => {
-        console.error('Worker error:', error);
-        this.workerInitialized = false;
-      };
-      
-      // 初始化Worker
-      this.audioWorker.postMessage({ type: 'init' });
-      
-    } catch (error) {
-      console.error('Failed to create worker:', error);
-      this.workerInitialized = false;
-    }
-  }
-
-  async synthesizeAudioWithWorker(backgroundType, durationMinutes) {
-    return new Promise((resolve, reject) => {
-      if (!this.audioWorker || !this.workerInitialized) {
-        reject(new Error('Web Worker未初始化，将使用主线程处理'));
-        return;
-      }
-      
-      this.workerResolve = resolve;
-      this.workerReject = reject;
-      
-      this.audioWorker.postMessage({
-        type: 'synthesize',
-        data: { backgroundType, durationMinutes }
-      });
-    });
-  }
-
-  handleWorkerSynthesisComplete(audioBlob) {
-    if (this.workerResolve) {
-      this.workerResolve(audioBlob);
-      this.workerResolve = null;
-      this.workerReject = null;
-    }
-  }
-
-  handleWorkerError(errorData) {
-    console.error('Worker synthesis error:', errorData);
-    if (this.workerReject) {
-      this.workerReject(new Error(errorData.message));
-      this.workerResolve = null;
-      this.workerReject = null;
-    }
-  }
-
   async generateMeditationAudio() {
     if (this.isLoading) return;
 
@@ -240,44 +160,22 @@ class MeditationAudioGenerator {
       return;
     }
 
+    // 检查音频文件是否已加载
+    const audioCheckResult = this.checkAudioFilesLoaded(backgroundType);
+    if (!audioCheckResult.success) {
+      alert(audioCheckResult.message);
+      return;
+    }
+
     this.showLoading(true);
-    this.updateProgress(0, "初始化音频处理器...", "准备生成音频");
 
     try {
-      // 使用Web Worker进行音频处理
-      const audioBlob = await this.synthesizeAudioWithWorker(backgroundType, duration);
-      
-      this.updateProgress(100, "音频生成完成！", "正在准备播放器");
+      await Tone.start();
+
+      const audioBlob = await this.synthesizeAudio(backgroundType, duration);
       this.displayGeneratedAudio(audioBlob);
     } catch (error) {
-      console.error("Web Worker音频生成失败:", error);
-      
-      // 如果Web Worker失败，回退到主线程处理
-      if (error.message.includes('Web Worker未初始化')) {
-        console.log("回退到主线程处理音频生成");
-        this.updateProgress(10, "回退到主线程处理", "正在初始化音频上下文");
-        
-        try {
-          // 检查音频文件是否已加载
-          const audioCheckResult = this.checkAudioFilesLoaded(backgroundType);
-          if (!audioCheckResult.success) {
-            alert(audioCheckResult.message);
-            return;
-          }
-
-          await Tone.start();
-          this.updateProgress(20, "音频上下文已就绪", "开始生成背景音频");
-
-          const audioBlob = await this.synthesizeAudio(backgroundType, duration);
-          
-          this.updateProgress(100, "音频生成完成！", "正在准备播放器");
-          this.displayGeneratedAudio(audioBlob);
-          return;
-        } catch (fallbackError) {
-          console.error("主线程音频生成也失败:", fallbackError);
-          error = fallbackError;
-        }
-      }
+      console.error("音频生成失败:", error);
 
       // 提供更具体的错误信息
       let errorMessage = "音频生成失败：";
@@ -325,16 +223,10 @@ class MeditationAudioGenerator {
     const sampleRate = 44100;
     const channels = 2;
 
-    this.updateProgress(20, "创建音频上下文", `准备生成 ${durationMinutes} 分钟音频`);
-
-    // 优化：使用更小的缓冲区大小来减少内存使用
-    const bufferSize = Math.min(sampleRate * durationSeconds, sampleRate * 300); // 最大5分钟缓冲区
-    const needsStreaming = durationSeconds > 300; // 超过5分钟使用流式处理
-
     // 创建离线音频上下文
     const offlineContext = new OfflineAudioContext(
       channels,
-      bufferSize,
+      sampleRate * durationSeconds,
       sampleRate
     );
 
@@ -344,20 +236,6 @@ class MeditationAudioGenerator {
       throw new Error("背景音未加载");
     }
 
-    this.updateProgress(30, "设置背景音频", "创建无缝循环背景音");
-
-    if (needsStreaming) {
-      // 对于长音频，使用分段处理
-      return await this.synthesizeAudioInChunks(backgroundType, durationMinutes);
-    } else {
-      // 对于短音频，使用原有方法
-      return await this.synthesizeAudioDirect(offlineContext, backgroundBuffer, durationMinutes);
-    }
-  }
-
-  async synthesizeAudioDirect(offlineContext, backgroundBuffer, durationMinutes) {
-    const durationSeconds = durationMinutes * 60;
-
     // 创建无缝循环的背景音
     await this.createSeamlessBackground(
       offlineContext,
@@ -365,117 +243,17 @@ class MeditationAudioGenerator {
       durationSeconds
     );
 
-    this.updateProgress(60, "添加钵声", "计算钵声插入时间点");
-
     // 计算钵声插入时间点
     const bowlTimes = this.calculateBowlTimes(durationMinutes);
 
     // 添加钵声
     await this.addBowlSounds(offlineContext, bowlTimes);
 
-    this.updateProgress(80, "渲染音频", "正在合成最终音频文件");
-
     // 渲染音频
     const renderedBuffer = await offlineContext.startRendering();
 
-    this.updateProgress(95, "转换格式", "准备音频下载");
-
     // 转换为Blob
     return this.audioBufferToBlob(renderedBuffer);
-  }
-
-  async synthesizeAudioInChunks(backgroundType, durationMinutes) {
-    const chunkDuration = 5; // 每个块5分钟
-    const totalChunks = Math.ceil(durationMinutes / chunkDuration);
-    const audioChunks = [];
-
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkStart = i * chunkDuration;
-      const chunkEnd = Math.min((i + 1) * chunkDuration, durationMinutes);
-      const actualChunkDuration = chunkEnd - chunkStart;
-
-      this.updateProgress(
-        30 + (i / totalChunks) * 50,
-        `处理音频块 ${i + 1}/${totalChunks}`,
-        `生成第 ${chunkStart}-${chunkEnd} 分钟`
-      );
-
-      const chunkBuffer = await this.generateAudioChunk(
-        backgroundType,
-        actualChunkDuration,
-        chunkStart
-      );
-      
-      audioChunks.push(chunkBuffer);
-    }
-
-    this.updateProgress(85, "合并音频块", "正在组合所有音频片段");
-
-    // 合并所有音频块
-    const finalBuffer = await this.mergeAudioChunks(audioChunks);
-
-    this.updateProgress(95, "转换格式", "准备音频下载");
-
-    return this.audioBufferToBlob(finalBuffer);
-  }
-
-  async generateAudioChunk(backgroundType, durationMinutes, startOffset) {
-    const durationSeconds = durationMinutes * 60;
-    const sampleRate = 44100;
-    const channels = 2;
-
-    const offlineContext = new OfflineAudioContext(
-      channels,
-      sampleRate * durationSeconds,
-      sampleRate
-    );
-
-    const backgroundBuffer = this.backgroundBuffers[backgroundType];
-    
-    // 创建背景音
-    await this.createSeamlessBackground(offlineContext, backgroundBuffer, durationSeconds);
-
-    // 计算这个块中的钵声时间点
-    const allBowlTimes = this.calculateBowlTimes(startOffset + durationMinutes);
-    const chunkBowlTimes = allBowlTimes.filter(time => 
-      time >= startOffset * 60 && time < (startOffset + durationMinutes) * 60
-    ).map(time => time - startOffset * 60);
-
-    if (chunkBowlTimes.length > 0) {
-      await this.addBowlSounds(offlineContext, chunkBowlTimes);
-    }
-
-    return await offlineContext.startRendering();
-  }
-
-  async mergeAudioChunks(chunks) {
-    if (chunks.length === 0) return null;
-    if (chunks.length === 1) return chunks[0];
-
-    const sampleRate = chunks[0].sampleRate;
-    const channels = chunks[0].numberOfChannels;
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-
-    // 创建合并后的缓冲区
-    const mergedBuffer = new AudioBuffer({
-      numberOfChannels: channels,
-      length: totalLength,
-      sampleRate: sampleRate
-    });
-
-    let offset = 0;
-    for (let channel = 0; channel < channels; channel++) {
-      const mergedData = mergedBuffer.getChannelData(channel);
-      offset = 0;
-      
-      for (const chunk of chunks) {
-        const chunkData = chunk.getChannelData(channel);
-        mergedData.set(chunkData, offset);
-        offset += chunkData.length;
-      }
-    }
-
-    return mergedBuffer;
   }
 
   async createSeamlessBackground(context, backgroundBuffer, durationSeconds) {
@@ -483,54 +261,83 @@ class MeditationAudioGenerator {
     const sampleRate = backgroundBuffer.sampleRate;
     const channels = backgroundBuffer.numberOfChannels;
 
-    // 优化：使用多个短循环而不是一个长buffer
+    // 计算需要多少个完整循环
     const loops = Math.ceil(durationSeconds / backgroundDuration);
-    const crossfadeDuration = 0.1; // 减少交叉淡化时间到0.1秒
-    const crossfadeSamples = Math.floor(sampleRate * crossfadeDuration);
 
-    // 创建背景音增益节点
+    // 创建一个足够长的buffer来容纳所有循环
+    const totalSamples = Math.ceil(durationSeconds * sampleRate);
+    const seamlessBuffer = context.createBuffer(
+      channels,
+      totalSamples,
+      sampleRate
+    );
+
+    // 为每个声道填充数据
+    for (let channel = 0; channel < channels; channel++) {
+      const originalData = backgroundBuffer.getChannelData(channel);
+      const seamlessData = seamlessBuffer.getChannelData(channel);
+      const originalSamples = originalData.length;
+
+      // 复制多个循环的数据
+      for (let loop = 0; loop < loops; loop++) {
+        const startSample = loop * originalSamples;
+        const endSample = Math.min(startSample + originalSamples, totalSamples);
+
+        for (let i = startSample; i < endSample; i++) {
+          const sourceIndex = i - startSample;
+          if (sourceIndex < originalSamples) {
+            seamlessData[i] = originalData[sourceIndex];
+          }
+        }
+
+        // 在循环边界添加交叉淡化以避免突兀
+        if (loop > 0 && startSample < totalSamples) {
+          const crossfadeSamples = Math.min(
+            sampleRate * 2,
+            originalSamples / 10
+          ); // 2秒交叉淡化
+
+          for (
+            let i = 0;
+            i < crossfadeSamples && startSample + i < totalSamples;
+            i++
+          ) {
+            const fadeIn = i / crossfadeSamples;
+            const fadeOut = 1 - fadeIn;
+
+            const currentIndex = startSample + i;
+            const prevIndex = currentIndex - originalSamples;
+
+            if (prevIndex >= 0 && currentIndex < totalSamples) {
+              seamlessData[currentIndex] =
+                seamlessData[prevIndex] * fadeOut + originalData[i] * fadeIn;
+            }
+          }
+        }
+      }
+    }
+
+    // 创建背景音源和增益节点
+    const backgroundSource = context.createBufferSource();
+    backgroundSource.buffer = seamlessBuffer;
+
     const backgroundGain = context.createGain();
+    backgroundSource.connect(backgroundGain);
     backgroundGain.connect(context.destination);
 
     // 计算钵声时间点用于静音处理
     const bowlTimes = this.calculateBowlTimes(durationSeconds / 60);
-    this.setupBackgroundMuting(backgroundGain, bowlTimes, context, durationSeconds);
 
-    // 优化：使用多个BufferSource而不是创建巨大的buffer
-    for (let loop = 0; loop < loops; loop++) {
-      const startTime = loop * backgroundDuration;
-      const endTime = Math.min((loop + 1) * backgroundDuration, durationSeconds);
-      
-      if (startTime >= durationSeconds) break;
+    // 设置背景音静音时间段
+    this.setupBackgroundMuting(
+      backgroundGain,
+      bowlTimes,
+      context,
+      durationSeconds
+    );
 
-      const source = context.createBufferSource();
-      source.buffer = backgroundBuffer;
-      
-      // 如果是最后一个循环且需要截断
-      if (endTime < (loop + 1) * backgroundDuration) {
-        const truncatedBuffer = this.truncateBuffer(
-          backgroundBuffer, 
-          endTime - startTime, 
-          context
-        );
-        source.buffer = truncatedBuffer;
-      }
-
-      // 添加交叉淡化
-      if (loop > 0) {
-        const fadeGain = context.createGain();
-        source.connect(fadeGain);
-        fadeGain.connect(backgroundGain);
-        
-        // 淡入效果
-        fadeGain.gain.setValueAtTime(0, startTime);
-        fadeGain.gain.linearRampToValueAtTime(1, startTime + crossfadeDuration);
-      } else {
-        source.connect(backgroundGain);
-      }
-
-      source.start(startTime);
-    }
+    // 开始播放
+    backgroundSource.start(0);
   }
 
   calculateBowlTimes(durationMinutes) {
@@ -705,24 +512,6 @@ class MeditationAudioGenerator {
       this.audioContainer.classList.remove("show");
     } else {
       this.loading.classList.remove("show");
-    }
-  }
-
-  updateProgress(percentage, text, details) {
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    const progressDetails = document.getElementById('progressDetails');
-    
-    if (progressFill) {
-      progressFill.style.width = `${percentage}%`;
-    }
-    
-    if (progressText) {
-      progressText.textContent = text;
-    }
-    
-    if (progressDetails) {
-      progressDetails.textContent = details;
     }
   }
 }
