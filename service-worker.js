@@ -1,6 +1,6 @@
-const CACHE_NAME = "mindfulness-audio-v1";
-const STATIC_CACHE_NAME = "mindfulness-static-v1";
-const AUDIO_CACHE_NAME = "mindfulness-audio-files-v1";
+const CACHE_NAME = "mindfulness-audio-v2";
+const STATIC_CACHE_NAME = "mindfulness-static-v2";
+const AUDIO_CACHE_NAME = "mindfulness-audio-files-v2";
 
 // 需要缓存的静态资源
 const STATIC_ASSETS = [
